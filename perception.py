@@ -1,9 +1,13 @@
 import asyncio
 import pdb
+import logging
+
+# Create a logger for this module
+log = logging.getLogger(__name__)
 
 async def generate_with_timeout(client, prompt, timeout=10):
     """Generate content with a timeout"""
-    print("Starting LLM generation...")
+    log.info("Starting Perception agent's LLM generation...")
     try:
         # Convert the synchronous generate_content call to run in a thread
         loop = asyncio.get_event_loop()
@@ -17,13 +21,13 @@ async def generate_with_timeout(client, prompt, timeout=10):
             ),
             timeout=timeout
         )
-        print("LLM generation completed")
+        log.info("Perception agent's LLM generation completed")
         return response
     except TimeoutError:
-        print("LLM generation timed out!")
+        log.error("Perception agent's LLM generation timed out!")
         raise
     except Exception as e:
-        print(f"Error in LLM generation: {e}")
+        log.error(f"Error in LLM generation: {e}")
         raise
 
 async def extract_facts_from_user_query(client, user_query):
@@ -33,6 +37,6 @@ async def extract_facts_from_user_query(client, user_query):
     prompt = f"{system_prompt}\n\nQuery: {user_query}"
     response = await generate_with_timeout(client, prompt)
     response_text = response.text.strip()
-    print(f"Facts extracted from user query: {response_text}")
+    log.debug(f"Facts extracted from user query: {response_text}")
     return response_text
 

@@ -7,9 +7,16 @@ import pdb
 from google import genai
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
+import logging
 from decider import decide
 from memory import get_user_preferences
 from perception import extract_facts_from_user_query
+
+# Basic logging configuration
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+# Create a logger for this module
+log = logging.getLogger(__name__)
 
 # Load environment variables from .env file
 load_dotenv()
@@ -51,13 +58,13 @@ def create_tools_description(tools):
 
             tool_desc = f"{i+1}. {name}({params_str}) - {desc}"
             tools_description.append(tool_desc)
-            print(f"Added description for tool: {tool_desc}")
+            log.debug(f"Added description for tool: {tool_desc}")
         except Exception as e:
-            print(f"Error processing tool {i}: {e}")
+            log.error(f"Error processing tool {i}: {e}")
             tools_description.append(f"{i+1}. Error processing tool")
     
     tools_description = "\n".join(tools_description)
-    print("Successfully created tools description")
+    log.info("Successfully created tools description")
     return tools_description
 
 
@@ -66,21 +73,21 @@ def parse_func_name_and_parameters(response_text, tools):
     parts = [p.strip() for p in function_info.split("|")]
     func_name, params = parts[0], parts[1:]
     
-    print(f"\nDEBUG: Raw function info: {function_info}")
-    print(f"DEBUG: Split parts: {parts}")
-    print(f"DEBUG: Function name: {func_name}")
-    print(f"DEBUG: Raw parameters: {params}")
+    log.debug(f"\nRaw function info: {function_info}")
+    log.debug(f" Split parts: {parts}")
+    log.debug(f" Function name: {func_name}")
+    log.debug(f" Raw parameters: {params}")
 
     # Find the matching tool to get its input schema
     tool = next((t for t in tools if t.name == func_name), None)
     if not tool:
-        print(f"DEBUG: Available tools: {[t.name for t in tools]}")
+        log.debug(f" Available tools: {[t.name for t in tools]}")
         raise ValueError(f"Unknown tool: {func_name}")
 
-    print(f"DEBUG: Found tool: {tool.name}")
-    print(f"DEBUG: Tool schema: {tool.inputSchema}")
+    log.debug(f" Found tool: {tool.name}")
+    log.debug(f" Tool schema: {tool.inputSchema}")
     schema_properties = tool.inputSchema.get('properties', {})
-    print(f"DEBUG: Schema properties: {schema_properties}")
+    log.debug(f" Schema properties: {schema_properties}")
    
     # Prepare arguments according to the tool's input schema
     arguments = {}
@@ -98,7 +105,7 @@ def parse_func_name_and_parameters(response_text, tools):
     #     value = params.pop(0)  # Get and remove the first parameter
     #     param_type = param_info.get('type', 'string')
         
-    #     print(f"DEBUG: Converting parameter {param_name} with value {value} to type {param_type}")
+    #     log.debug(f" Converting parameter {param_name} with value {value} to type {param_type}")
         
     #     # Convert the value to the correct type based on the schema
     #     if param_type == 'integer':
@@ -119,39 +126,35 @@ def parse_func_name_and_parameters(response_text, tools):
 
 
 async def main():
-    print("Starting main execution.. agents2-s6-multiagent!")
+    log.info("Starting main execution.. agents2-s6-multiagent!")
     reset_state()  # Reset at the start of main
 
     try:
          # Create a single MCP server connection
          # TODO In our case action.py is same as mcpserver.py (last assignment)?. Should we move the whole connection and mcp related logic to actions.py? If so, we would need a way to keep the connection open and only clode, when we are done
-        print("Establishing connection to MCP server...")
+        log.info("Establishing connection to MCP server...")
         server_params = StdioServerParameters(
             command="python3",
             args=["action.py"] 
         )
 
         async with stdio_client(server_params) as (read, write):
-            print("Connection established, creating session...")
+            log.info("Connection established, creating session...")
 
             async with ClientSession(read, write) as session:
-                print("Session created, initializing...")
+                log.info("Session created, initializing...")
                 await session.initialize()
 
                 # Get available tools
-                print("Requesting tool list...")
+                log.info("Requesting tool list...")
                 tools_result = await session.list_tools()
                 tools = tools_result.tools
-                print(f"Successfully retrieved {len(tools)} tools")
-
-                # Create system prompt with available tools
-                print("Creating system prompt...")
-                print(f"Number of tools: {len(tools)}")
+                log.info(f"Successfully retrieved {len(tools)} tools")
 
                 try:
                     tools_description = create_tools_description(tools)
                 except Exception as e:
-                    print(f"Error creating tools description: {e}")
+                    log.error(f"Error creating tools description: {e}")
                     tools_description = "Error loading tools"
 
                 # Query for Drawing on Keynote
@@ -159,20 +162,25 @@ async def main():
                 #Query to send email instead
                 user_query = """Find the ASCII values of characters in INDIA and then calculate the sum of exponentials of those values. Once you have the answer, send an email to user's email address with subject 'Sending MCP email by Gemini' and with body with your final answer """
                 
+                log.info("Extracting facts from user query...")
                 facts = await extract_facts_from_user_query(client, user_query)
+                log.info(f"Facts extracted from user query: {facts}")
                 if (facts):
                     user_query = user_query + "\n\n" + "Facts extracted from user query: " + facts
+                
+                log.info("Extracting user preferences...")
                 user_preferences = get_user_preferences()
+                log.info(f"User preferences: {user_preferences}")
                 if (user_preferences):
                     user_query = user_query + "\n\n" + "\nUser preferences: ".join(user_preferences)
-                #TODO need to call perception and memory
+                
                 query = user_query
-                print("Starting iteration loop...")
+                log.info("Starting iteration loop...")
                 # Use global iteration variables
                 global iteration, last_response
                 
                 while iteration < max_iterations:
-                    print(f"\n--- Iteration {iteration + 1} ---")
+                    log.info(f"\n--- Iteration {iteration + 1} ---")
                     if last_response is None:
                         current_query = query
                     else:
@@ -180,26 +188,26 @@ async def main():
                         current_query = current_query + "  What should I do next?"
                 
                     try:
-                        print(f"Calling Decider with current_query {current_query}")
+                        log.info("Calling Decider agent...")
+                        log.debug(f"Calling Decider with current_query {current_query}")
                         response_text = await decide(client, current_query, tools_description)
-                        print(f"DEBUG: Received response from the Decider: {response_text}")
+                        log.info(f" Received response from the Decider: {response_text}")
                     except Exception as e:
-                        print(f"Failed to get the decider's response: {e}")
+                        log.error(f"Failed to get the decider's response: {e}")
                         break
 
                     if response_text.startswith("FUNCTION_CALL:"):
                         try:
-                            print(f"Preparing and performing action for the decider's decision")
+                            log.info("Preparing and performing action for the decider's decision")
                             func_name, arguments = parse_func_name_and_parameters(response_text, tools)
                             
-                            print(f"DEBUG: Final arguments: {arguments}")
-                            print(f"DEBUG: Calling tool {func_name}")
+                            log.info(f" Calling tool {func_name} with arguments {arguments}")
                             result = await session.call_tool(func_name, arguments=arguments)
-                            print(f"DEBUG: Raw result from action: {result}")
+                            log.info(f" Raw result from action: {result}")
             
                             # Get the full result content
                             if hasattr(result, 'content'):
-                                print(f"DEBUG: Result has content attribute")
+                                log.debug(f" Result has content attribute")
                                 # Handle multiple content items
                                 if isinstance(result.content, list):
                                     iteration_result = [
@@ -209,10 +217,10 @@ async def main():
                                 else:
                                     iteration_result = str(result.content)
                             else:
-                                print(f"DEBUG: Result has no content attribute")
+                                log.debug(f" Result has no content attribute")
                                 iteration_result = str(result)
                                 
-                            print(f"DEBUG: Final iteration result: {iteration_result}")
+                            log.info(f" Final iteration result: {iteration_result}")
                             
                             # Format the response based on result type
                             if isinstance(iteration_result, list):
@@ -227,23 +235,23 @@ async def main():
                             last_response = iteration_result
                         
                         except Exception as e:
-                            print(f"Error while taking action: {e} ")
-                            print(f"DEBUG: Error details: {str(e)}")
-                            print(f"DEBUG: Error type: {type(e)}")
+                            log.error(f"Error while taking action: {e} ")
+                            log.error(f" Error details: {str(e)}")
+                            log.error(f" Error type: {type(e)}")
                             import traceback
                             traceback.print_exc()
                             iteration_response.append(f"Error in iteration {iteration + 1}: {str(e)}")
                             break
                     
                     elif response_text.startswith("DONE!!"):
-                        print("\n=== Agent Execution Complete ===")
+                        log.info("\n=== Agent Execution Complete ===")
                         break
 
                     iteration += 1
                     time.sleep(4) # sleep to avoid hitting per sec gemini limit
 
     except Exception as e:
-        print(f"Error in main execution: {e}")
+        log.error(f"Error in main execution: {e}")
         import traceback
         traceback.print_exc()
     finally:

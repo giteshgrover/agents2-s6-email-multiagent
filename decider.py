@@ -1,9 +1,13 @@
 import asyncio
 import pdb
+import logging
+
+# Create a logger for this module
+log = logging.getLogger(__name__)
 
 async def generate_with_timeout(client, prompt, timeout=10):
     """Generate content with a timeout"""
-    print("Starting LLM generation...")
+    log.info("Starting Decider agent's LLM generation...")
     try:
         # Convert the synchronous generate_content call to run in a thread
         loop = asyncio.get_event_loop()
@@ -17,13 +21,13 @@ async def generate_with_timeout(client, prompt, timeout=10):
             ),
             timeout=timeout
         )
-        print("LLM generation completed")
+        log.info("Decider agent's LLM generation completed")
         return response
     except TimeoutError:
-        print("LLM generation timed out!")
+        log.error("Decider agent's LLM generation timed out!")
         raise
     except Exception as e:
-        print(f"Error in LLM generation: {e}")
+        log.error(f"Error in LLM generation: {e}")
         raise
 
 async def decide(client, query, tools_description):
@@ -62,13 +66,13 @@ async def decide(client, query, tools_description):
     DO NOT include any explanations or additional text.
     Your entire response should be a single line starting with either FUNCTION_CALL: or DONE!!"""
 
-    print("Preparing to generate LLM response...")
+    log.info("Preparing to generate LLM response...")
     prompt = f"{system_prompt}\n\nQuery: {query}"
     # pdb.set_trace()
 
     response = await generate_with_timeout(client, prompt)
     response_text = response.text.strip()
-    print(f"LLM Response: {response_text}")
+    log.info(f"Decider agent's LLM response: {response_text}")
     
     # Find the FUNCTION_CALL line in the response
     for line in response_text.split('\n'):
