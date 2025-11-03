@@ -153,9 +153,9 @@ async def main():
                     tools_description = "Error loading tools"
 
                 # Query for Drawing on Keynote
-                user_query = """Find the ASCII values of characters in INDIA and then calculate the sum of exponentials of those values. Once you have the answer, create a keynote presentation, add a rectangle to opened keynote presentation, and add the answer as a text to the rectangle."""
+                # user_query = """Find the ASCII values of characters in INDIA and then calculate the sum of exponentials of those values. Once you have the answer, create a keynote presentation, add a rectangle to opened keynote presentation, and add the answer as a text to the rectangle."""
                 #Query to send email instead
-                # user_query = """Find the ASCII values of characters in INDIA and then calculate the sum of exponentials of those values. Once you have the answer, send an email to 'gitesh.grover@gmail.com' with subject 'Sending MCP email by Gemini' and with body with your final answer """
+                user_query = """Find the ASCII values of characters in INDIA and then calculate the sum of exponentials of those values. Once you have the answer, send an email to 'gitesh.grover@gmail.com' with subject 'Sending MCP email by Gemini' and with body with your final answer """
                 
                 #TODO need to call perception and memory
                 query = user_query

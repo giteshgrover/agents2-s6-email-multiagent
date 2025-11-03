@@ -175,6 +175,11 @@ class AddTextInKeynotePresentationInput(BaseModel):
 class AddTextInKeynotePresentationOutput(BaseModel):
     message: str
 
+class SendEmailInput(BaseModel):
+    to_email: str
+    subject: str
+    body: str
+
 #addition tool
 @mcp.tool()
 def add(input: AddInput) -> AddOutput:
@@ -392,171 +397,228 @@ def add_text_in_keynote_presentation(input: AddTextInKeynotePresentationInput) -
         print(f"Unexpected error in AppleScript execution: {e}")
         raise
 
-async def draw_rectangle(input: DrawRectangleInput) -> dict:
-    """Draw a rectangle in Paint from (x1,y1) to (x2,y2)"""
-    global paint_app
-    try:
-        if not paint_app:
-            return {
-                "content": [
-                    TextContent(
-                        type="text",
-                        text="Paint is not open. Please call open_paint first."
-                    )
-                ]
-            }
-        
-        # Get the Paint window
-        paint_window = paint_app.window(class_name='MSPaintApp')
-        
-        # Get primary monitor width to adjust coordinates
-        primary_width = GetSystemMetrics(0)
-        
-        # Ensure Paint window is active
-        if not paint_window.has_focus():
-            paint_window.set_focus()
-            time.sleep(0.2)
-        
-        # Click on the Rectangle tool using the correct coordinates for secondary screen
-        paint_window.click_input(coords=(530, 82 ))
-        time.sleep(0.2)
-        
-        # Get the canvas area
-        canvas = paint_window.child_window(class_name='MSPaintView')
-        
-        # Draw rectangle - coordinates should already be relative to the Paint window
-        # No need to add primary_width since we're clicking within the Paint window
-        canvas.press_mouse_input(coords=(input.x1+2560, input.y1))
-        canvas.move_mouse_input(coords=(input.x2+2560, input.y2))
-        canvas.release_mouse_input(coords=(input.x2+2560, input.y2))
-        
-        return {
-            "content": [
-                TextContent(
-                    type="text",
-                    text=f"Rectangle drawn from ({input.x1},{input.y1}) to ({input.x2},{input.y2})"
-                )
-            ]
-        }
-    except Exception as e:
-        return {
-            "content": [
-                TextContent(
-                    type="text",
-                    text=f"Error drawing rectangle: {str(e)}"
-                )
-            ]
+# Define scopes for Gmail API access
+# SCOPES = ['https://www.googleapis.com/auth/gmail.modify']
+SCOPES = ["https://www.googleapis.com/auth/gmail.send"]
+
+@mcp.tool()
+def send_email(input: SendEmailInput) -> None:
+    """
+    Send an email using Gmail API.
+    Args:
+    {"input": 
+        {
+            "to_email": "to_email@emaildomain",
+            "subject": "Email Subject",
+            "body" : "Email Body"
         }
 
+    }
+    """
+        
+    print("CALLED: send_email(input: SendEmailInput) -> None:")
+    creds = None
 
-async def add_text_in_paint(input: AddTextInPaintInput) -> dict:
-    """Add text in Paint"""
-    global paint_app
-    try:
-        if not paint_app:
-            return {
-                "content": [
-                    TextContent(
-                        type="text",
-                        text="Paint is not open. Please call open_paint first."
-                    )
-                ]
-            }
+    # Load saved tokens if available
+    credentials_path = "./.gmail-mcp/credentials.json"
+    token_path = "./.gmail-mcp/token.json"
+    if os.path.exists(token_path):
+        creds = Credentials.from_authorized_user_file(token_path, SCOPES)
+        print("token found")
+
+     # If no valid creds, go through OAuth flow
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(credentials_path, SCOPES)
+            creds = flow.run_local_server(port=0)
+            print("Credential file found")
+        # Save token for next time
+        with open(token_path, "w") as token_file:
+            token_file.write(creds.to_json())
+
+    # Build Gmail service
+    service = build("gmail", "v1", credentials=creds)
+
+    # Create email message
+    message = MIMEText(input.body)
+    message["to"] = input.to_email
+    message["from"] = "me"
+    message["subject"] = input.subject
+    raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
+
+    # Send the email
+    send_result = service.users().messages().send(
+        userId="me", body={"raw": raw_message}
+    ).execute()
+    print(f"Send Result: {send_result}")
+
+# async def draw_rectangle(input: DrawRectangleInput) -> dict:
+#     """Draw a rectangle in Paint from (x1,y1) to (x2,y2)"""
+#     global paint_app
+#     try:
+#         if not paint_app:
+#             return {
+#                 "content": [
+#                     TextContent(
+#                         type="text",
+#                         text="Paint is not open. Please call open_paint first."
+#                     )
+#                 ]
+#             }
         
-        # Get the Paint window
-        paint_window = paint_app.window(class_name='MSPaintApp')
+#         # Get the Paint window
+#         paint_window = paint_app.window(class_name='MSPaintApp')
         
-        # Ensure Paint window is active
-        if not paint_window.has_focus():
-            paint_window.set_focus()
-            time.sleep(0.5)
+#         # Get primary monitor width to adjust coordinates
+#         primary_width = GetSystemMetrics(0)
         
-        # Click on the Rectangle tool
-        paint_window.click_input(coords=(528, 92))
-        time.sleep(0.5)
+#         # Ensure Paint window is active
+#         if not paint_window.has_focus():
+#             paint_window.set_focus()
+#             time.sleep(0.2)
         
-        # Get the canvas area
-        canvas = paint_window.child_window(class_name='MSPaintView')
+#         # Click on the Rectangle tool using the correct coordinates for secondary screen
+#         paint_window.click_input(coords=(530, 82 ))
+#         time.sleep(0.2)
         
-        # Select text tool using keyboard shortcuts
-        paint_window.type_keys('t')
-        time.sleep(0.1)
-        paint_window.type_keys('x')
-        time.sleep(0.5)
+#         # Get the canvas area
+#         canvas = paint_window.child_window(class_name='MSPaintView')
         
-        # Click where to start typing
-        canvas.click_input(coords=(810, 533))
-        time.sleep(0.5)
+#         # Draw rectangle - coordinates should already be relative to the Paint window
+#         # No need to add primary_width since we're clicking within the Paint window
+#         canvas.press_mouse_input(coords=(input.x1+2560, input.y1))
+#         canvas.move_mouse_input(coords=(input.x2+2560, input.y2))
+#         canvas.release_mouse_input(coords=(input.x2+2560, input.y2))
         
-        # Type the text passed from client
-        paint_window.type_keys(input.text)
-        time.sleep(0.5)
-        
-        # Click to exit text mode
-        canvas.click_input(coords=(1050, 800))
-        
-        return {
-            "content": [
-                TextContent(
-                    type="text",
-                    text=f"Text:'{input.text}' added successfully"
-                )
-            ]
-        }
-    except Exception as e:
-        return {
-            "content": [
-                TextContent(
-                    type="text",
-                    text=f"Error: {str(e)}"
-                )
-            ]
-        }
+#         return {
+#             "content": [
+#                 TextContent(
+#                     type="text",
+#                     text=f"Rectangle drawn from ({input.x1},{input.y1}) to ({input.x2},{input.y2})"
+#                 )
+#             ]
+#         }
+#     except Exception as e:
+#         return {
+#             "content": [
+#                 TextContent(
+#                     type="text",
+#                     text=f"Error drawing rectangle: {str(e)}"
+#                 )
+#             ]
+#         }
 
 
-async def open_paint() -> dict:
-    """Open Microsoft Paint maximized on secondary monitor"""
-    global paint_app
-    try:
-        paint_app = Application().start('mspaint.exe')
-        time.sleep(0.2)
+# async def add_text_in_paint(input: AddTextInPaintInput) -> dict:
+#     """Add text in Paint"""
+#     global paint_app
+#     try:
+#         if not paint_app:
+#             return {
+#                 "content": [
+#                     TextContent(
+#                         type="text",
+#                         text="Paint is not open. Please call open_paint first."
+#                     )
+#                 ]
+#             }
         
-        # Get the Paint window
-        paint_window = paint_app.window(class_name='MSPaintApp')
+#         # Get the Paint window
+#         paint_window = paint_app.window(class_name='MSPaintApp')
         
-        # Get primary monitor width
-        primary_width = GetSystemMetrics(0)
+#         # Ensure Paint window is active
+#         if not paint_window.has_focus():
+#             paint_window.set_focus()
+#             time.sleep(0.5)
         
-        # First move to secondary monitor without specifying size
-        win32gui.SetWindowPos(
-            paint_window.handle,
-            win32con.HWND_TOP,
-            primary_width + 1, 0,  # Position it on secondary monitor
-            0, 0,  # Let Windows handle the size
-            win32con.SWP_NOSIZE  # Don't change the size
-        )
+#         # Click on the Rectangle tool
+#         paint_window.click_input(coords=(528, 92))
+#         time.sleep(0.5)
         
-        # Now maximize the window
-        win32gui.ShowWindow(paint_window.handle, win32con.SW_MAXIMIZE)
-        time.sleep(0.2)
+#         # Get the canvas area
+#         canvas = paint_window.child_window(class_name='MSPaintView')
         
-        return {
-            "content": [
-                TextContent(
-                    type="text",
-                    text="Paint opened successfully on secondary monitor and maximized"
-                )
-            ]
-        }
-    except Exception as e:
-        return {
-            "content": [
-                TextContent(
-                    type="text",
-                    text=f"Error opening Paint: {str(e)}"
-                )
-            ]
-        }
+#         # Select text tool using keyboard shortcuts
+#         paint_window.type_keys('t')
+#         time.sleep(0.1)
+#         paint_window.type_keys('x')
+#         time.sleep(0.5)
+        
+#         # Click where to start typing
+#         canvas.click_input(coords=(810, 533))
+#         time.sleep(0.5)
+        
+#         # Type the text passed from client
+#         paint_window.type_keys(input.text)
+#         time.sleep(0.5)
+        
+#         # Click to exit text mode
+#         canvas.click_input(coords=(1050, 800))
+        
+#         return {
+#             "content": [
+#                 TextContent(
+#                     type="text",
+#                     text=f"Text:'{input.text}' added successfully"
+#                 )
+#             ]
+#         }
+#     except Exception as e:
+#         return {
+#             "content": [
+#                 TextContent(
+#                     type="text",
+#                     text=f"Error: {str(e)}"
+#                 )
+#             ]
+#         }
+
+
+# async def open_paint() -> dict:
+#     """Open Microsoft Paint maximized on secondary monitor"""
+#     global paint_app
+#     try:
+#         paint_app = Application().start('mspaint.exe')
+#         time.sleep(0.2)
+        
+#         # Get the Paint window
+#         paint_window = paint_app.window(class_name='MSPaintApp')
+        
+#         # Get primary monitor width
+#         primary_width = GetSystemMetrics(0)
+        
+#         # First move to secondary monitor without specifying size
+#         win32gui.SetWindowPos(
+#             paint_window.handle,
+#             win32con.HWND_TOP,
+#             primary_width + 1, 0,  # Position it on secondary monitor
+#             0, 0,  # Let Windows handle the size
+#             win32con.SWP_NOSIZE  # Don't change the size
+#         )
+        
+#         # Now maximize the window
+#         win32gui.ShowWindow(paint_window.handle, win32con.SW_MAXIMIZE)
+#         time.sleep(0.2)
+        
+#         return {
+#             "content": [
+#                 TextContent(
+#                     type="text",
+#                     text="Paint opened successfully on secondary monitor and maximized"
+#                 )
+#             ]
+#         }
+#     except Exception as e:
+#         return {
+#             "content": [
+#                 TextContent(
+#                     type="text",
+#                     text=f"Error opening Paint: {str(e)}"
+#                 )
+#             ]
+#         }
 # DEFINE RESOURCES
 
 # Add a dynamic greeting resource
