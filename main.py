@@ -8,6 +8,8 @@ from google import genai
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from decider import decide
+from memory import get_user_preferences
+from perception import extract_facts_from_user_query
 
 # Load environment variables from .env file
 load_dotenv()
@@ -155,8 +157,14 @@ async def main():
                 # Query for Drawing on Keynote
                 # user_query = """Find the ASCII values of characters in INDIA and then calculate the sum of exponentials of those values. Once you have the answer, create a keynote presentation, add a rectangle to opened keynote presentation, and add the answer as a text to the rectangle."""
                 #Query to send email instead
-                user_query = """Find the ASCII values of characters in INDIA and then calculate the sum of exponentials of those values. Once you have the answer, send an email to 'gitesh.grover@gmail.com' with subject 'Sending MCP email by Gemini' and with body with your final answer """
+                user_query = """Find the ASCII values of characters in INDIA and then calculate the sum of exponentials of those values. Once you have the answer, send an email to user's email address with subject 'Sending MCP email by Gemini' and with body with your final answer """
                 
+                facts = await extract_facts_from_user_query(client, user_query)
+                if (facts):
+                    user_query = user_query + "\n\n" + "Facts extracted from user query: " + facts
+                user_preferences = get_user_preferences()
+                if (user_preferences):
+                    user_query = user_query + "\n\n" + "\nUser preferences: ".join(user_preferences)
                 #TODO need to call perception and memory
                 query = user_query
                 print("Starting iteration loop...")
