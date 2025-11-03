@@ -1,6 +1,9 @@
 import os
 from dotenv import load_dotenv
 import asyncio
+import time
+import json
+import pdb
 from google import genai
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
@@ -74,34 +77,41 @@ def parse_func_name_and_parameters(response_text, tools):
 
     print(f"DEBUG: Found tool: {tool.name}")
     print(f"DEBUG: Tool schema: {tool.inputSchema}")
-
-    # Prepare arguments according to the tool's input schema
-    arguments = {}
     schema_properties = tool.inputSchema.get('properties', {})
     print(f"DEBUG: Schema properties: {schema_properties}")
+   
+    # Prepare arguments according to the tool's input schema
+    arguments = {}
 
-    for param_name, param_info in schema_properties.items():
+    # assumption is that is there is any argument, it would be in format input: jsonVal
+    if (schema_properties.items()):
         if not params:  # Check if we have enough parameters
             raise ValueError(f"Not enough parameters provided for {func_name}")
-            
-        value = params.pop(0)  # Get and remove the first parameter
-        param_type = param_info.get('type', 'string')
-        
-        print(f"DEBUG: Converting parameter {param_name} with value {value} to type {param_type}")
-        
-        # Convert the value to the correct type based on the schema
-        if param_type == 'integer':
-            arguments[param_name] = int(value)
-        elif param_type == 'number':
-            arguments[param_name] = float(value)
-        elif param_type == 'array':
-            # Handle array input
-            if isinstance(value, str):
-                value = value.strip('[]').split(',')
-            arguments[param_name] = [int(x.strip()) for x in value]
-        else:
-            arguments[param_name] = str(value)
+        arguments = json.loads(params.pop(0))
 
+    # for param_name, param_info in schema_properties.items():
+    #     if not params:  # Check if we have enough parameters
+    #         raise ValueError(f"Not enough parameters provided for {func_name}")
+            
+    #     value = params.pop(0)  # Get and remove the first parameter
+    #     param_type = param_info.get('type', 'string')
+        
+    #     print(f"DEBUG: Converting parameter {param_name} with value {value} to type {param_type}")
+        
+    #     # Convert the value to the correct type based on the schema
+    #     if param_type == 'integer':
+    #         arguments[param_name] = int(value)
+    #     elif param_type == 'number':
+    #         arguments[param_name] = float(value)
+    #     elif param_type == 'array':
+    #         # Handle array input
+    #         if isinstance(value, str):
+    #             value = value.strip('[]').split(',')
+    #         arguments[param_name] = [int(x.strip()) for x in value]
+    #     else:
+    #         arguments[param_name] = str(value)
+
+    pdb.set_trace()
     return func_name, arguments
 
 
@@ -222,6 +232,7 @@ async def main():
                         break
 
                     iteration += 1
+                    time.sleep(4) # sleep to avoid hitting per sec gemini limit
 
     except Exception as e:
         print(f"Error in main execution: {e}")

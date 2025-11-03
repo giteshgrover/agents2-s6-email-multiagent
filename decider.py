@@ -1,4 +1,5 @@
 import asyncio
+import pdb
 
 async def generate_with_timeout(client, prompt, timeout=10):
     """Generate content with a timeout"""
@@ -27,6 +28,16 @@ async def generate_with_timeout(client, prompt, timeout=10):
 
 async def decide(client, query, tools_description):
     # We are passing in the client to not to instantiate one after every iteration, but it can be instantiated here as well 
+    function_format = "function_name|input_json"
+    function_examples = """
+    - FUNCTION_CALL: add|{"input":{"a":5,"b":10}}
+    - FUNCTION_CALL: strings_to_chars_to_int|{"input":{"string":"INDIA"}}
+    - FUNCTION_CALL: create_and_open_keynote_presentation|
+    - FUNCTION_CALL: add_rectangle_in_keynote_presentation|
+    - FUNCTION_CALL: add_text_in_keynote_presentation|{"input":{"text":"42"}}
+    - FUNCTION_CALL: int_list_to_exponential_sum|{"input":{"numbers":[7, 10, 20]}}
+    """
+
     system_prompt = f"""You are a math agent solving problems in iterations. You have access to various mathematical tools.
 
     Available tools:
@@ -34,7 +45,7 @@ async def decide(client, query, tools_description):
 
     You must respond with EXACTLY ONE line in one of these formats (no additional text):
     1. For function calls:
-    FUNCTION_CALL: function_name|param1|param2|...
+    FUNCTION_CALL: {function_format}
     
     2. when you are done:
     DONE!!
@@ -45,11 +56,7 @@ async def decide(client, query, tools_description):
     - Do not repeat function calls with the same parameters
 
     Examples:
-    - FUNCTION_CALL: add|5|3
-    - FUNCTION_CALL: strings_to_chars_to_int|INDIA
-    - FUNCTION_CALL: create_and_open_keynote_presentation|
-    - FUNCTION_CALL: add_rectangle_in_keynote_presentation|
-    - FUNCTION_CALL: add_text_in_keynote_presentation|42
+    {function_examples}
     - DONE!!
 
     DO NOT include any explanations or additional text.
@@ -57,6 +64,7 @@ async def decide(client, query, tools_description):
 
     print("Preparing to generate LLM response...")
     prompt = f"{system_prompt}\n\nQuery: {query}"
+    # pdb.set_trace()
 
     response = await generate_with_timeout(client, prompt)
     response_text = response.text.strip()

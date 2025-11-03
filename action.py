@@ -134,7 +134,7 @@ class StringsToCharsToIntOutput(BaseModel):
     result: list[int]
 
 class IntListToExponentialSumInput(BaseModel):
-    int_list: list[int]
+    numbers: list[int]
 
 class IntListToExponentialSumOutput(BaseModel):
     result: float
@@ -297,7 +297,7 @@ def strings_to_chars_to_int(input: StringsToCharsToIntInput) -> StringsToCharsTo
 def int_list_to_exponential_sum(input: IntListToExponentialSumInput) -> IntListToExponentialSumOutput:
     """Return sum of exponentials of numbers in a list"""
     print("CALLED: int_list_to_exponential_sum(input: IntListToExponentialSumInput) -> IntListToExponentialSumOutput:")
-    return IntListToExponentialSumOutput(result = sum(math.exp(i) for i in input.int_list))
+    return IntListToExponentialSumOutput(result = sum(math.exp(i) for i in input.numbers))
 
 @mcp.tool()
 def fibonacci_numbers(input: FibonacciNumbersInput) -> FibonacciNumbersOutput:
@@ -311,7 +311,7 @@ def fibonacci_numbers(input: FibonacciNumbersInput) -> FibonacciNumbersOutput:
     return FibonacciNumbersOutput(result = fib_sequence[:input.n])
 
 @mcp.tool()
-def create_and_open_keynote_presentation() -> CreateOpenKeynotePresentationOutput:
+def create_and_open_keynote_presentation() -> None:
     """Creates and opens a keynote presentation"""
     print("CALLED: create_and_open_keynote_presentation() -> None:")
     applescript = '''
@@ -331,37 +331,15 @@ def create_and_open_keynote_presentation() -> CreateOpenKeynotePresentationOutpu
         result = subprocess.run(["osascript", "-e", applescript], 
                               capture_output=True, text=True, check=True)
         print(f"AppleScript executed successfully: {result.stdout}")
-        return {
-            "content": [
-                TextContent(
-                    type="text",
-                    text="Keynote create and opened successfully"
-                )
-            ]
-        }
     except subprocess.CalledProcessError as e:
         print(f"AppleScript execution failed: {e.stderr}")
-        return {
-            "content": [
-                TextContent(
-                    type="text",
-                    text=f"Error: {str(e)}"
-                )
-            ]
-        }
+        raise
     except Exception as e:
         print(f"Unexpected error in AppleScript execution: {e}")
-        return {
-            "content": [
-                TextContent(
-                    type="text",
-                    text=f"Error: {str(e)}"
-                )
-            ]
-        }
+        raise
 
 @mcp.tool()
-def add_rectangle_in_keynote_presentation() -> AddRectangleInKeynotePresentationOutput:
+def add_rectangle_in_keynote_presentation() -> None:
     """Adds a rectangle to an opened keynote presentation"""
     print("CALLED: add_rectangle_in_keynote_presentation() -> None:")
     applescript = '''
@@ -379,41 +357,19 @@ def add_rectangle_in_keynote_presentation() -> AddRectangleInKeynotePresentation
         result = subprocess.run(["osascript", "-e", applescript], 
                               capture_output=True, text=True, check=True)
         print(f"AppleScript executed successfully: {result.stdout}")
-        return {
-            "content": [
-                TextContent(
-                    type="text",
-                    text="Added rectangle sucessfully in the opened Keynote"
-                )
-            ]
-        }
     except subprocess.CalledProcessError as e:
         print(f"AppleScript execution failed: {e.stderr}")
-        return {
-            "content": [
-                TextContent(
-                    type="text",
-                    text=f"Error: {str(e)}"
-                )
-            ]
-        }
+        raise
     except Exception as e:
         print(f"Unexpected error in AppleScript execution: {e}")
-        return {
-            "content": [
-                TextContent(
-                    type="text",
-                    text=f"Error: {str(e)}"
-                )
-            ]
-        }
+        raise
 
 @mcp.tool()
-def add_text_in_keynote_presentation(input: AddTextInKeynotePresentationInput) -> AddTextInKeynotePresentationOutput:
+def add_text_in_keynote_presentation(input: AddTextInKeynotePresentationInput) -> None:
     """Adds text to an opened keynote presentation"""
-    print("CALLED: add_text_in_keynote_presentation(text: str) -> None:")
+    print("CALLED: add_text_in_keynote_presentation(input: AddTextInKeynotePresentationInput) -> None:")
     # Properly escape the text for AppleScript
-    escaped_text = text.replace('"', '\\"').replace('\\', '\\\\')
+    escaped_text = input.text.replace('"', '\\"').replace('\\', '\\\\')
     applescript = f'''
     tell application "Keynote"
         activate
@@ -429,34 +385,12 @@ def add_text_in_keynote_presentation(input: AddTextInKeynotePresentationInput) -
         result = subprocess.run(["osascript", "-e", applescript], 
                               capture_output=True, text=True, check=True)
         print(f"AppleScript executed successfully: {result.stdout}")
-        return {
-            "content": [
-                TextContent(
-                    type="text",
-                    text=f"Text:'{input.text}' added successfully"
-                )
-            ]
-        }
     except subprocess.CalledProcessError as e:
         print(f"AppleScript execution failed: {e.stderr}")
-        return {
-            "content": [
-                TextContent(
-                    type="text",
-                    text=f"Error: {str(e)}"
-                )
-            ]
-        }
+        raise
     except Exception as e:
         print(f"Unexpected error in AppleScript execution: {e}")
-        return {
-            "content": [
-                TextContent(
-                    type="text",
-                    text=f"Error: {str(e)}"
-                )
-            ]
-        }
+        raise
 
 async def draw_rectangle(input: DrawRectangleInput) -> dict:
     """Draw a rectangle in Paint from (x1,y1) to (x2,y2)"""
