@@ -1,0 +1,17 @@
+[project]
+name = "agents2-s6-paint-multiagent"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "dotenv>=0.9.9",
+    "google>=3.0.0",
+    "google-api-python-client>=2.186.0",
+    "google-auth>=2.42.1",
+    "google-auth-oauthlib>=1.2.2",
+    "google-genai>=1.47.0",
+    "mcp[cli]>=1.20.0",
+    "python-pptx>=1.0.2",
+    "pywinauto>=0.6.9",
+]
