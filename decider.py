@@ -27,7 +27,7 @@ async def generate_with_timeout(client, prompt, timeout=10):
         log.error("Decider agent's LLM generation timed out!")
         raise
     except Exception as e:
-        log.error(f"Error in LLM generation: {e}")
+        log.error(f"Error in Decider agent's LLM generation: {e}")
         raise
 
 async def decide(client, query, tools_description):
@@ -72,7 +72,7 @@ async def decide(client, query, tools_description):
 
     response = await generate_with_timeout(client, prompt)
     response_text = response.text.strip()
-    log.info(f"Decider agent's LLM response: {response_text}")
+    log.info(f"LLM Response: {response_text}")
     
     # Find the FUNCTION_CALL line in the response
     for line in response_text.split('\n'):
